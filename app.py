@@ -1,6 +1,14 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+# Google Sheets 認証設定
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name("your_credentials.json", scope)
+client = gspread.authorize(creds)
+sheet = client.open("Quiz Results").sheet1
 
 # タイトルと説明
 st.title("🍄 食品衛生マスタークイズ")
@@ -53,19 +61,18 @@ if st.button("回答を送信する"):
         else:
             st.write("⚠️ もう一度復習してみましょう。")
 
-        # 🔐 管理者用 集計表示
-        with st.expander("🔑 管理者用 集計結果を表示"):
-            admin_pw = st.text_input("パスワードを入力してください", type="password")
-            if admin_pw == "260218":
-                st.success("認証に成功しました！")
-                # 仮の集計表示（ここにExcelやGoogle Sheetsの読み込みを追加可能）
-                demo_data = pd.DataFrame({
-                    "氏名": [user_name],
-                    "スコア": [score],
-                    "日時": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")]
-                })
-                st.write("### 集計結果（デモ）")
-                st.dataframe(demo_data)
-            elif admin_pw:
-                st.error("パスワードが間違っています。")
+        # Google Sheets に保存
+        sheet.append_row([user_name, score, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+
+# 🔐 管理者用 集計表示
+with st.expander("🔑 管理者用 集計結果を表示"):
+    admin_pw = st.text_input("パスワードを入力してください", type="password")
+    if admin_pw == "260218":
+        st.success("認証に成功しました！")
+        sheet_data = sheet.get_all_records()
+        df = pd.DataFrame(sheet_data)
+        st.write("### 集計結果")
+        st.dataframe(df)
+    elif admin_pw:
+        st.error("パスワードが間違っています。")
 
